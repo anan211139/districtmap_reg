@@ -311,21 +311,69 @@
 
   <script>
 
-    const DISTRICT_COLUMNS = [
-      { key: 'district', label: 'เขต' },
+    // const DISTRICT_COLUMNS = [
+    //   { key: 'district', label: 'เขต' },
 
-      { key: 'reg1', label: 'ลงทะเบียน (กปน)' },
-      { key: 'cap1', label: 'ทั้งหมด (กปน)' },
-      { key: 'pct1', label: '%' },
+    //   { key: 'reg1', label: 'ลงทะเบียน (กปน)' },
+    //   { key: 'cap1', label: 'ทั้งหมด (กปน)' },
+    //   { key: 'pct1', label: '%' },
 
-      { key: 'reg2', label: 'ลงทะเบียน (เขต)' },
-      { key: 'cap2', label: 'ทั้งหมด (เขต)' },
-      { key: 'pct2', label: '%' },
+    //   { key: 'reg2', label: 'ลงทะเบียน (เขต)' },
+    //   { key: 'cap2', label: 'ทั้งหมด (เขต)' },
+    //   { key: 'pct2', label: '%' },
 
-      { key: 'regT', label: 'ลงทะเบียน (รวม)' },
-      { key: 'capT', label: 'ทั้งหมด (รวม)' },
-      { key: 'pctT', label: '%' }
-    ];
+    //   { key: 'regT', label: 'ลงทะเบียน (รวม)' },
+    //   { key: 'capT', label: 'ทั้งหมด (รวม)' },
+    //   { key: 'pctT', label: '%' }
+    // ];
+
+    // ================= util =================
+const n = v => Number(v) || 0;
+
+// ================= columns =================
+const DISTRICT_COLUMNS = [
+  { key: 'district', label: 'เขต' },
+
+  { key: 'reg1', label: 'ลงทะเบียน (กปน)' },
+  { key: 'cap1', label: 'ทั้งหมด (กปน)' },
+  {
+    key: 'pct1',
+    label: '% (หน่วย)',
+    sortValue: r =>
+      n(r.cap1) ? n(r.reg1) / n(r.cap1) : 0
+  },
+
+  { key: 'reg2', label: 'ลงทะเบียน (เขต)' },
+  { key: 'cap2', label: 'ทั้งหมด (เขต)' },
+  {
+    key: 'pct2',
+    label: '% (เขต)',
+    sortValue: r =>
+      n(r.cap2) ? n(r.reg2) / n(r.cap2) : 0
+  },
+
+  {
+    key: 'regT',
+    label: 'ลงทะเบียน (รวม)',
+    sortValue: r => n(r.reg1) + n(r.reg2)
+  },
+  {
+    key: 'capT',
+    label: 'ทั้งหมด (รวม)',
+    sortValue: r => n(r.cap1) + n(r.cap2)
+  },
+  {
+    key: 'pctT',
+    label: '% (รวม)',
+    sortValue: r => {
+      const reg = n(r.reg1) + n(r.reg2);
+      const cap = n(r.cap1) + n(r.cap2);
+      return cap ? reg / cap : 0;
+    }
+  }
+];
+
+
 
     const CONSTITUENCY_COLUMNS = [
       { key: 'constituency', label: 'เขตเลือกตั้ง' },
@@ -738,23 +786,40 @@
               .forEach(x => x.classList.remove('asc', 'desc'));
             th.classList.add(sortAsc ? 'asc' : 'desc');
 
-            cur.sort((a, b) => {
-              const getVal = r => {
-                if (k === 'pct1') return r.cap1 ? r.reg1 / r.cap1 : 0;
-                if (k === 'pct2') return r.cap2 ? r.reg2 / r.cap2 : 0;
-                if (k === 'pctT') {
-                  const rt = (r.reg1 || 0) + (r.reg2 || 0);
-                  const ct = (r.cap1 || 0) + (r.cap2 || 0);
-                  return ct ? rt / ct : 0;
-                }
-                if (k === 'pct') return r.cap ? r.reg / r.cap : 0;
-                if (k === 'regT') return (r.reg1 || 0) + (r.reg2 || 0);
-                if (k === 'capT') return (r.cap1 || 0) + (r.cap2 || 0);
-                return r[k];
-              };
+            // cur.sort((a, b) => {
+            //   const getVal = r => {
+            //     if (k === 'pct1') return r.cap1 ? r.reg1 / r.cap1 : 0;
+            //     if (k === 'pct2') return r.cap2 ? r.reg2 / r.cap2 : 0;
+            //     if (k === 'pctT') {
+            //       const rt = (r.reg1 || 0) + (r.reg2 || 0);
+            //       const ct = (r.cap1 || 0) + (r.cap2 || 0);
+            //       return ct ? rt / ct : 0;
+            //     }
+            //     if (k === 'pct') return r.cap ? r.reg / r.cap : 0;
+            //     if (k === 'regT') return (r.reg1 || 0) + (r.reg2 || 0);
+            //     if (k === 'capT') return (r.cap1 || 0) + (r.cap2 || 0);
+            //     return r[k];
+            //   };
 
-              return (getVal(a) > getVal(b) ? 1 : -1) * (sortAsc ? 1 : -1);
+            //   return (getVal(a) > getVal(b) ? 1 : -1) * (sortAsc ? 1 : -1);
+            // });
+            cur.sort((a, b) => {
+              const col = DISTRICT_COLUMNS.find(c => c.key === k);
+              console.log('sort key:', k, 'col:', col);
+
+              let va, vb;
+
+              if (col?.sortValue) {
+                va = col.sortValue(a);
+                vb = col.sortValue(b);
+              } else {
+                va = n(a[k]);
+                vb = n(b[k]);
+              }
+
+              return (va > vb ? 1 : -1) * (sortAsc ? 1 : -1);
             });
+
 
             draw(cur);
           };
