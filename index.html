@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="utf-8" />
+<title>District Registration Map</title>
+
+<!-- Leaflet -->
+<link rel="stylesheet"
+  href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<!-- PapaParse -->
+<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+
+<style>
+  body { margin:0; font-family: sans-serif; }
+  #map { height:100vh; }
+
+  .label {
+    pointer-events: none;
+    color: #000;
+    text-shadow:
+      -1px -1px 0 #fff,
+       1px -1px 0 #fff,
+      -1px  1px 0 #fff,
+       1px  1px 0 #fff;
+  }
+  .district-label {
+  pointer-events: none;
+}
+
+.label-box {
+  text-align: center;
+  line-height: 1.2;
+  white-space: nowrap;   /* 🔑 บังคับไม่ตัดบรรทัดมั่ว */
+  font-family: "Kanit", sans-serif;
+  color: #000;
+  text-shadow:
+    -1px -1px 0 #fff,
+     1px -1px 0 #fff,
+    -1px  1px 0 #fff,
+     1px  1px 0 #fff;
+}
+
+.label-name {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.label-value {
+  font-size: 12px;
+  font-weight: 700;
+}
+
+</style>
+</head>
+<body>
+
+<div id="map"></div>
+
+<script>
+/* ===============================
+   1. Init Map
+================================ */
+const map = L.map('map').setView([13.75, 100.5], 10);
+
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution: '© OpenStreetMap'
+}).addTo(map);
+
+/* ===============================
+   2. Color Scale
+================================ */
+function getColor(p) {
+  return p > 0.9 ? '#92ad4c' :
+         p > 0.7 ? '#dcff85' :
+         p > 0.5 ? '#ffdb80' :
+         p > 0.3 ? '#f5c2b8' :
+                   '#fcf2f0';
+}
+
+/* ===============================
+   3. Load CSV
+================================ */
+const dataByDistrict = {};
+
+Papa.parse('data.csv', {
+  download: true,
+  header: true,
+  complete: res => {
+    res.data.forEach(d => {
+      if (!d.district) return;
+      dataByDistrict[d.district.trim()] = {
+        reg1: +d.reg1,
+        cap1: +d.cap1,
+        reg2: +d.reg2,
+        cap2: +d.cap2
+      };
+    });
+    loadGeo();
+  }
+});
+
+/* ===============================
+   4. Load GeoJSON
+================================ */
+function loadGeo() {
+  fetch('district.geojson')
+    .then(r => r.json())
+    .then(geo => {
+
+      L.geoJSON(geo, {
+
+        /* ----- style ----- */
+        style: f => {
+          const d = dataByDistrict[f.properties.district] || {
+            reg1: 0, cap1: 0,
+            reg2: 0, cap2: 0
+            };
+
+            const totalCap = d.cap1 + d.cap2;
+            const pct = totalCap === 0 ? 0 : (d.reg1 + d.reg2) / totalCap;
+
+            return {
+            fillColor: getColor(pct),
+            color: '#555',
+            weight: 1,
+            fillOpacity: 0.8
+        };
+        //   const pct = (d.reg1 + d.reg2) / (d.cap1 + d.cap2);
+
+        //   return {
+        //     fillColor: getColor(pct),
+        //     color: '#555',
+        //     weight: 1,
+        //     fillOpacity: 0.8
+        //   };
+        },
+
+        /* ----- feature logic ----- */
+        onEachFeature: (f, layer) => {
+          const d = dataByDistrict[f.properties.district] || {
+            reg1: 0, cap1: 0,
+            reg2: 0, cap2: 0
+        };
+
+          const regTotal = d.reg1 + d.reg2;
+          const capTotal = d.cap1 + d.cap2;
+          const pct = capTotal === 0 ? 0 : (regTotal / capTotal * 100).toFixed(1);
+
+          /* tooltip */
+          layer.bindTooltip(`
+            <b>${f.properties.district}</b><br>
+            กปน : ${d.reg1} / ${d.cap1}<br>
+            เจ้าหน้าที่ : ${d.reg2} / ${d.cap2}<br>
+            <hr>
+            รวม ${regTotal} / ${capTotal} (${pct}%)
+          `);
+
+          /* label (district + number) */
+          const center = layer.getBounds().getCenter();
+
+          if (map.getZoom() >= 10) {
+            L.marker(center, {
+                icon: L.divIcon({
+                    className: 'district-label',
+                    html: `
+                    <div class="label-box">
+                        <div class="label-name">${f.properties.district}</div>
+                        <div class="label-value">${regTotal} / ${capTotal}</div>
+                    </div>
+                    `
+                })
+            }).addTo(map);
+          }
+        }
+
+      }).addTo(map);
+    });
+}
+</script>
+
+</body>
+</html>
