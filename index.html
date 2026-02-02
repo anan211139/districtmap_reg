@@ -52,11 +52,193 @@
   font-weight: 700;
 }
 
+
+/* ===== summary ===== */
+#summary-panel {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 300px;
+  background: #ffffff;
+  padding: 14px;
+  border-radius: 10px;
+  box-shadow: 0 6px 20px rgba(0,0,0,.15);
+  z-index: 1000;
+  font-size: 13px;
+}
+
+#summary-panel h4 {
+  margin: 0 0 10px 0;
+  font-size: 14px;
+}
+
+.metric {
+  background: #f7f9fc;
+  border-radius: 6px;
+  padding: 8px;
+  margin-bottom: 8px;
+}
+
+#summary-panel button {
+  margin-top: 6px;
+  padding: 8px;
+  width: 100%;
+  border: none;
+  border-radius: 6px;
+  background: #1976d2;
+  color: white;
+  cursor: pointer;
+}
+
+/* ===== overlay ===== */
+#overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.3);
+  z-index: 1090;
+}
+
+/* ===== table drawer ===== */
+#table-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: 520px;
+  height: 100vh;
+  background: #ffffff;
+  box-shadow: -6px 0 20px rgba(0,0,0,.25);
+  z-index: 1100;
+  display: flex;
+  flex-direction: column;
+}
+
+/* header */
+.table-header {
+  display: flex;
+  align-items: center;
+  padding: 10px;
+  border-bottom: 1px solid #ddd;
+  background: #f5f7fb;
+}
+
+.tabs {
+  display: flex;
+}
+
+.tab-btn {
+  border: none;
+  background: transparent;
+  padding: 8px 12px;
+  cursor: pointer;
+}
+
+.tab-btn.active {
+  font-weight: bold;
+  border-bottom: 2px solid #1976d2;
+}
+
+#close-table {
+  margin-left: auto;
+  border: none;
+  background: transparent;
+  font-size: 18px;
+  cursor: pointer;
+}
+
+/* content */
+.tab-content {
+  padding: 10px;
+  overflow: auto;
+  flex: 1;
+}
+
+.hidden {
+  display: none;
+}
+
+/* ===== table ===== */
+.table-search {
+  width: 100%;
+  padding: 6px;
+  margin-bottom: 6px;
+  border-radius: 4px;
+  border: 1px solid #ccc;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+th {
+  background: #f0f3f9;
+  cursor: pointer;
+}
+
+th, td {
+  border: 1px solid #ddd;
+  padding: 6px;
+}
+
+tbody tr:nth-child(even) {
+  background: #fafafa;
+}
+
+
+
+
 </style>
 </head>
 <body>
 
 <div id="map"></div>
+
+<div id="summary-panel">
+  <h4>สรุปภาพรวม</h4>
+
+  <div class="metric">
+    <b>ยอดรวมทั้งหมด</b><br>
+    <span id="total-all"></span>
+  </div>
+
+  <div class="metric">
+    <b>ระดับเขต</b><br>
+    <span id="district-sum"></span>
+  </div>
+
+  <div class="metric">
+    <b>ระดับเขตเลือกตั้ง</b><br>
+    <span id="constituency-sum"></span>
+  </div>
+
+  <button id="toggle-table">ดูข้อมูลแบบตาราง</button>
+</div>
+
+<!-- overlay -->
+<div id="overlay" class="hidden"></div>
+
+<div id="table-panel" class="hidden">
+  <div class="table-header">
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="tab1">data.csv</button>
+      <button class="tab-btn" data-tab="tab2">constituency</button>
+    </div>
+    <button id="close-table">✕</button>
+  </div>
+
+  <div id="tab1" class="tab-content">
+    <input class="table-search" placeholder="ค้นหาใน data.csv">
+    <div class="table-wrap"></div>
+  </div>
+
+  <div id="tab2" class="tab-content hidden">
+    <input class="table-search" placeholder="ค้นหาใน constituency">
+    <div class="table-wrap"></div>
+  </div>
+</div>
+
+
 
 <script>
 /* ===============================
@@ -72,12 +254,20 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
    2. Color Scale
 ================================ */
 function getColor(p) {
-  return p > 0.9 ? '#92ad4c' :
-         p > 0.7 ? '#dcff85' :
-         p > 0.5 ? '#ffdb80' :
-         p > 0.3 ? '#f5c2b8' :
-                   '#fcf2f0';
+  p = Math.max(0, Math.min(1, p)); // clamp 0–1
+
+  // น้ำเงินเฉดเดียว: light → dark
+  // light: rgb(227,242,253)
+  // dark : rgb(13,71,161)
+
+  const r = Math.round(227 + (13  - 227) * p);
+  const g = Math.round(242 + (71  - 242) * p);
+  const b = Math.round(253 + (161 - 253) * p);
+
+  return `rgb(${r},${g},${b})`;
 }
+
+
 
 /* ===============================
    3. Load CSV
@@ -178,6 +368,154 @@ function loadGeo() {
       }).addTo(map);
     });
 }
+
+
+let dataCSV = [];
+let conCSV = [];
+
+// ---------- load data.csv ----------
+Papa.parse('data.csv', {
+  download: true,
+  header: true,
+  complete: r => {
+    dataCSV = r.data.filter(d => d.reg1);
+    updateSummary();
+    renderTable(dataCSV, 'tab1');
+  }
+});
+
+// ---------- load constituency_cleaned.csv ----------
+Papa.parse('constituency_cleaned.csv', {
+  download: true,
+  header: true,
+  complete: r => {
+    conCSV = r.data.filter(d => d.reg);
+    updateSummary();
+    renderTable(conCSV, 'tab2');
+  }
+});
+
+function sum(arr, key) {
+  return arr.reduce((a,b)=>a+(+b[key]||0),0);
+}
+
+function pct(a,b){
+  return b===0 ? '0%' : ((a/b)*100).toFixed(1)+'%';
+}
+
+function updateSummary(){
+  if (!dataCSV.length || !conCSV.length) return;
+
+  const reg1 = sum(dataCSV,'reg1');
+  const cap1 = sum(dataCSV,'cap1');
+  const reg2 = sum(dataCSV,'reg2');
+  const cap2 = sum(dataCSV,'cap2');
+
+  const reg = sum(conCSV,'reg');
+  const cap = sum(conCSV,'cap');
+
+  document.getElementById('total-all').innerText =
+    `${reg1+reg2+reg} / ${cap1+cap2+cap}`;
+
+  document.getElementById('district-sum').innerText =
+    `${reg1+reg2} / ${cap1+cap2} (${pct(reg1+reg2, cap1+cap2)})`;
+
+  document.getElementById('constituency-sum').innerText =
+    `${reg} / ${cap} (${pct(reg, cap)})`;
+}
+
+function renderTable(data, tabId) {
+  const container = document.querySelector(`#${tabId} .table-wrap`);
+  const searchInput = document.querySelector(`#${tabId} .table-search`);
+
+  let currentData = [...data];
+  let sortKey = null;
+  let sortAsc = true;
+
+  function drawTable(rows) {
+    if (!rows.length) {
+      container.innerHTML = '<i>ไม่มีข้อมูล</i>';
+      return;
+    }
+
+    let html = '<table><thead><tr>';
+    Object.keys(rows[0]).forEach(k => {
+      html += `<th class="sortable" data-key="${k}">${k}</th>`;
+    });
+    html += '</tr></thead><tbody>';
+
+    rows.forEach(r => {
+      html += '<tr>';
+      Object.values(r).forEach(v => {
+        html += `<td>${v}</td>`;
+      });
+      html += '</tr>';
+    });
+
+    html += '</tbody></table>';
+    container.innerHTML = html;
+
+    // bind sort
+    container.querySelectorAll('th.sortable').forEach(th => {
+      th.onclick = () => {
+        const key = th.dataset.key;
+        sortAsc = (sortKey === key) ? !sortAsc : true;
+        sortKey = key;
+
+        currentData.sort((a, b) => {
+          if (a[key] == b[key]) return 0;
+          return (a[key] > b[key] ? 1 : -1) * (sortAsc ? 1 : -1);
+        });
+
+        drawTable(currentData);
+      };
+    });
+  }
+
+  // search
+  searchInput.oninput = () => {
+    const q = searchInput.value.toLowerCase();
+    currentData = data.filter(r =>
+      Object.values(r).some(v =>
+        String(v).toLowerCase().includes(q)
+      )
+    );
+    drawTable(currentData);
+  };
+
+  drawTable(currentData);
+}
+
+// toggle table
+const overlay = document.getElementById('overlay');
+const tablePanel = document.getElementById('table-panel');
+
+document.getElementById('toggle-table').onclick = () => {
+  tablePanel.classList.remove('hidden');
+  overlay.classList.remove('hidden');
+};
+
+document.getElementById('close-table').onclick = closeTable;
+overlay.onclick = closeTable;
+
+function closeTable() {
+  tablePanel.classList.add('hidden');
+  overlay.classList.add('hidden');
+}
+
+
+// tab switch
+document.querySelectorAll('.tab-btn').forEach(btn=>{
+  btn.onclick = ()=>{
+    document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(c=>c.classList.add('hidden'));
+
+    btn.classList.add('active');
+    document.getElementById(btn.dataset.tab).classList.remove('hidden');
+  };
+});
+
+
 </script>
 
 </body>
