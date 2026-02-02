@@ -674,8 +674,9 @@
         rows.forEach(r => {
           const pct1 = r.cap1 ? r.reg1 / r.cap1 : 0;
           const pct2 = r.cap2 ? r.reg2 / r.cap2 : 0;
-          const regT = (r.reg1 || 0) + (r.reg2 || 0);
-          const capT = (r.cap1 || 0) + (r.cap2 || 0);
+          const regT = (+r.reg1 || 0) + (+r.reg2 || 0);
+          const capT = (+r.cap1 || 0) + (+r.cap2 || 0);
+
           const pctT = capT ? regT / capT : 0;
           const pct = r.cap ? r.reg / r.cap : 0;
 
