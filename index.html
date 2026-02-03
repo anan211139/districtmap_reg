@@ -251,6 +251,20 @@
       /* text-align: left; */
       font-weight: 600;
     }
+
+    .group-row {
+      background: #f2f5fb;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .detail-row {
+      background: #fff;
+    }
+
+    .detail-row.hidden {
+      display: none;
+    }
   </style>
 </head>
 
@@ -287,21 +301,34 @@
         <!-- tabs -->
         <div class="table-header">
           <div class="tabs">
-            <button class="tab-btn active" data-tab="tab1">เขตการปกครอง</button>
-            <button class="tab-btn" data-tab="tab2">เขตเลือกตั้ง</button>
+            <button class="tab-btn active" data-tab="tab-district">เขตการปกครอง</button>
+            <button class="tab-btn" data-tab="tab-group">กลุ่มเขต</button>
+            <button class="tab-btn" data-tab="tab-constituency">เขตเลือกตั้ง</button>
           </div>
-          <!-- <button id="close-table">✕</button> -->
         </div>
 
-        <div id="tab1" class="tab-content">
+        <!-- เขตการปกครอง -->
+        <div id="tab-district" class="tab-content">
           <input class="table-search" placeholder="ค้นหาในเขตการปกครอง">
           <div class="table-wrap"></div>
         </div>
 
-        <div id="tab2" class="tab-content hidden">
+        <!-- กลุ่มเขต -->
+        <div id="tab-group" class="tab-content hidden">
+          <input class="table-search" placeholder="ค้นหาในกลุ่มเขต">
+          <div class="table-wrap"></div>
+        </div>
+
+        <!-- เขตเลือกตั้ง -->
+        <div id="tab-constituency" class="tab-content hidden">
           <input class="table-search" placeholder="ค้นหาในเขตเลือกตั้ง">
           <div class="table-wrap"></div>
         </div>
+
+
+
+
+
       </div>
 
     </div>
@@ -328,50 +355,105 @@
     // ];
 
     // ================= util =================
-const n = v => Number(v) || 0;
+    const n = v => Number(v) || 0;
 
-// ================= columns =================
-const DISTRICT_COLUMNS = [
-  { key: 'district', label: 'เขต' },
+    // ================= columns =================
 
-  { key: 'reg1', label: 'ลงทะเบียน (กปน)' },
-  { key: 'cap1', label: 'ทั้งหมด (กปน)' },
-  {
-    key: 'pct1',
-    label: '% (หน่วย)',
-    sortValue: r =>
-      n(r.cap1) ? n(r.reg1) / n(r.cap1) : 0
-  },
+    const DISTRICT_GROUPS = [
+      {
+        key: 'bkk_center',
+        label: 'กรุงเทพกลาง',
+        districts: ['พระนคร', 'ดุสิต', 'ป้อมปราบศัตรูพ่าย', 'สัมพันธวงศ์', 'ดินแดง', 'ห้วยขวาง', 'วังทองหลาง', 'ราชเทวี', 'พญาไท']
+      },
+      {
+        key: 'bkk_north',
+        label: 'กรุงเทพเหนือ',
+        districts: ['จตุจักร', 'ลาดพร้าว', 'บางซื่อ', 'หลักสี่', 'ดอนเมือง', 'สายไหม', 'บางเขน']
+      },
+      {
+        key: 'bkk_south',
+        label: 'กรุงเทพใต้',
+        districts: ['ปทุมวัน', 'บางรัก', 'สาทร', 'บางคอแหลม', 'ยานนาวา', 'คลองเตย', 'วัฒนา', 'พระโขนง', 'สวนหลวง', 'บางนา']
+      },
+      {
+        key: 'bkk_east',
+        label: 'กรุงเทพตะวันออก',
+        districts: ['บางกะปิ', 'สะพานสูง', 'บึงกุ่ม', 'คันนายาว', 'ลาดกระบัง', 'มีนบุรี', 'หนองจอก', 'คลองสามวา', 'ประเวศ']
+      },
+      {
+        key: 'thon_north',
+        label: 'กรุงธนเหนือ',
+        districts: ['ธนบุรี', 'คลองสาน', 'จอมทอง', 'บางกอกใหญ่', 'บางกอกน้อย', 'บางพลัด', 'ตลิ่งชัน', 'ทวีวัฒนา']
+      },
+      {
+        key: 'thon_south',
+        label: 'กรุงธนใต้',
+        districts: ['ภาษีเจริญ', 'บางแค', 'หนองแขม', 'บางขุนเทียน', 'บางบอน', 'ราษฎร์บูรณะ', 'ทุ่งครุ']
+      }
+    ];
 
-  { key: 'reg2', label: 'ลงทะเบียน (เขต)' },
-  { key: 'cap2', label: 'ทั้งหมด (เขต)' },
-  {
-    key: 'pct2',
-    label: '% (เขต)',
-    sortValue: r =>
-      n(r.cap2) ? n(r.reg2) / n(r.cap2) : 0
-  },
+    function buildGroupData(data) {
+      return DISTRICT_GROUPS.map(g => {
+        const rows = data.filter(r => g.districts.includes(r.district));
 
-  {
-    key: 'regT',
-    label: 'ลงทะเบียน (รวม)',
-    sortValue: r => n(r.reg1) + n(r.reg2)
-  },
-  {
-    key: 'capT',
-    label: 'ทั้งหมด (รวม)',
-    sortValue: r => n(r.cap1) + n(r.cap2)
-  },
-  {
-    key: 'pctT',
-    label: '% (รวม)',
-    sortValue: r => {
-      const reg = n(r.reg1) + n(r.reg2);
-      const cap = n(r.cap1) + n(r.cap2);
-      return cap ? reg / cap : 0;
+        const reg = rows.reduce((s, r) => s + n(r.reg1) + n(r.reg2), 0);
+        const cap = rows.reduce((s, r) => s + n(r.cap1) + n(r.cap2), 0);
+
+        return {
+          type: 'group',
+          key: g.key,
+          label: g.label,
+          reg,
+          cap,
+          pct: cap ? reg / cap : 0,
+          rows
+        };
+      });
     }
-  }
-];
+
+
+
+    const DISTRICT_COLUMNS = [
+      { key: 'district', label: 'เขต' },
+
+      { key: 'reg1', label: 'ลงทะเบียน (กปน)' },
+      { key: 'cap1', label: 'ทั้งหมด (กปน)' },
+      {
+        key: 'pct1',
+        label: '% (หน่วย)',
+        sortValue: r =>
+          n(r.cap1) ? n(r.reg1) / n(r.cap1) : 0
+      },
+
+      { key: 'reg2', label: 'ลงทะเบียน (เขต)' },
+      { key: 'cap2', label: 'ทั้งหมด (เขต)' },
+      {
+        key: 'pct2',
+        label: '% (เขต)',
+        sortValue: r =>
+          n(r.cap2) ? n(r.reg2) / n(r.cap2) : 0
+      },
+
+      {
+        key: 'regT',
+        label: 'ลงทะเบียน (รวม)',
+        sortValue: r => n(r.reg1) + n(r.reg2)
+      },
+      {
+        key: 'capT',
+        label: 'ทั้งหมด (รวม)',
+        sortValue: r => n(r.cap1) + n(r.cap2)
+      },
+      {
+        key: 'pctT',
+        label: '% (รวม)',
+        sortValue: r => {
+          const reg = n(r.reg1) + n(r.reg2);
+          const cap = n(r.cap1) + n(r.cap2);
+          return cap ? reg / cap : 0;
+        }
+      }
+    ];
 
 
 
@@ -587,7 +669,8 @@ const DISTRICT_COLUMNS = [
             reg2: +d.reg2, cap2: +d.cap2
           };
         });
-        renderTable(dataCSV, 'tab1', DISTRICT_COLUMNS);
+        renderTable(dataCSV, 'tab-district', DISTRICT_COLUMNS);
+        renderGroupTable(dataCSV, 'tab-group');
         updateKPIDataCSV();
         loadGeo();
       }
@@ -598,7 +681,7 @@ const DISTRICT_COLUMNS = [
       download: true, header: true,
       complete: r => {
         conCSV = r.data.filter(d => d.constituency);
-        renderTable(conCSV, 'tab2', CONSTITUENCY_COLUMNS);
+        renderTable(conCSV, 'tab-constituency', CONSTITUENCY_COLUMNS);
       }
     });
 
@@ -839,18 +922,169 @@ const DISTRICT_COLUMNS = [
 
       draw(cur);
     }
+    //  summary ของแต่ละกลุ่ม
+    function renderGroupTable(data, tabId) {
+      const wrap = document.querySelector(`#${tabId} .table-wrap`);
+      const search = document.querySelector(`#${tabId} .table-search`);
+
+      let groups = buildGroupData(data);
+      let cur = [...groups];
+
+      let sortKey = null;
+      let sortAsc = true;
+
+      function draw(rows) {
+        if (!rows.length) {
+          wrap.innerHTML = '<i>ไม่มีข้อมูล</i>';
+          return;
+        }
+
+        let html = `
+      <table>
+        <thead>
+          <tr>
+            <th class="sortable" data-k="label">กลุ่มเขต</th>
+            <th class="sortable" data-k="reg">ลงทะเบียน</th>
+            <th class="sortable" data-k="cap">ทั้งหมด</th>
+            <th class="sortable" data-k="pct">%</th>
+          </tr>
+        </thead>
+        <tbody>
+    `;
+
+        rows.forEach(g => {
+          html += `
+        <tr class="group-row" data-key="${g.key}">
+          <td>▶ ${g.label}</td>
+          <td>${g.reg}</td>
+          <td>${g.cap}</td>
+          <td style="background:${bgColor(g.pct)}">
+            ${(g.pct * 100).toFixed(1)}%
+          </td>
+        </tr>
+      `;
+
+          g.rows.forEach(r => {
+            const reg = n(r.reg1) + n(r.reg2);
+            const cap = n(r.cap1) + n(r.cap2);
+            const pct = cap ? reg / cap : 0;
+
+            html += `
+          <tr class="detail-row hidden" data-parent="${g.key}">
+            <td>&nbsp;&nbsp;↳ ${r.district}</td>
+            <td>${reg}</td>
+            <td>${cap}</td>
+            <td style="background:${bgColor(pct)}">
+              ${(pct * 100).toFixed(1)}%
+            </td>
+          </tr>
+        `;
+          });
+        });
+
+        html += '</tbody></table>';
+        wrap.innerHTML = html;
+
+        // ===== expand / collapse =====
+        wrap.querySelectorAll('.group-row').forEach(row => {
+          row.onclick = () => {
+            const key = row.dataset.key;
+            wrap.querySelectorAll(`[data-parent="${key}"]`)
+              .forEach(r => r.classList.toggle('hidden'));
+
+            row.firstElementChild.textContent =
+              row.firstElementChild.textContent.startsWith('▶')
+                ? row.firstElementChild.textContent.replace('▶', '▼')
+                : row.firstElementChild.textContent.replace('▼', '▶');
+          };
+        });
+
+        // ===== sort (group level only) =====
+        wrap.querySelectorAll('th.sortable').forEach(th => {
+          th.onclick = () => {
+            const k = th.dataset.k;
+            sortAsc = (sortKey === k) ? !sortAsc : true;
+            sortKey = k;
+
+            wrap.querySelectorAll('th.sortable')
+              .forEach(x => x.classList.remove('asc', 'desc'));
+            th.classList.add(sortAsc ? 'asc' : 'desc');
+
+            cur.sort((a, b) => {
+              let va = a[k];
+              let vb = b[k];
+
+              if (k === 'label') {
+                va = a.label;
+                vb = b.label;
+              }
+
+              return (va > vb ? 1 : -1) * (sortAsc ? 1 : -1);
+            });
+
+            draw(cur);
+          };
+        });
+      }
+
+      // ===== search =====
+      if (search) {
+        search.oninput = () => {
+          const q = search.value.toLowerCase();
+
+          cur = groups.filter(g =>
+            g.label.toLowerCase().includes(q) ||
+            g.rows.some(r =>
+              r.district.toLowerCase().includes(q)
+            )
+          );
+
+          draw(cur);
+        };
+      }
+
+      draw(cur);
+    }
+
 
 
     /* ================= TAB ================= */
-    document.querySelectorAll('.tab-btn').forEach(b => {
-      b.onclick = () => {
-        document.querySelectorAll('.tab-btn').forEach(x => x.classList.remove('active'));
-        document.querySelectorAll('.tab-content').forEach(x => x.classList.add('hidden'));
-        b.classList.add('active');
-        document.getElementById(b.dataset.tab).classList.remove('hidden');
-        b.dataset.tab === 'tab1' ? updateKPIDataCSV() : updateKPICon();
+    /* ================= TAB ================= */
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.onclick = () => {
+
+        // active tab style
+        document.querySelectorAll('.tab-btn')
+          .forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+
+        // show / hide content
+        document.querySelectorAll('.tab-content')
+          .forEach(c => c.classList.add('hidden'));
+        document.getElementById(btn.dataset.tab)
+          .classList.remove('hidden');
+
+        // update KPI + table ตาม tab
+        switch (btn.dataset.tab) {
+
+          case 'tab-district':
+            updateKPIDataCSV();
+            renderTable(dataCSV, 'tab-district', DISTRICT_COLUMNS);
+            break;
+
+          case 'tab-group':
+            updateKPIDataCSV(); // กลุ่มเขตยังอิง dataCSV
+            renderGroupTable(dataCSV, 'tab-group');
+            break;
+
+          case 'tab-constituency':
+            updateKPICon();
+            renderTable(conCSV, 'tab-constituency', CONSTITUENCY_COLUMNS);
+            break;
+        }
       };
     });
+
 
     // /* ================= CLOSE ================= */
     // document.getElementById('close-table').onclick=()=>{
